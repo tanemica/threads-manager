@@ -43,6 +43,10 @@ h1{font-size:22px;margin:0;letter-spacing:-.5px}
 .pm{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:6px}
 .pmb{width:36px;height:36px;border-radius:50%;border:0;background:var(--card);color:var(--tx);font-size:18px;line-height:1;display:grid;place-items:center;padding:0}
 .pmb:active{background:var(--pri);color:var(--prit)}
+.order{display:flex;gap:4px;align-items:center}
+.ob{width:30px;height:30px;border:0;border-radius:8px;background:var(--soft);color:var(--sub);font-size:11px;padding:0}
+.ob:disabled{opacity:.3}
+.ob:not(:disabled):active{background:var(--pri);color:var(--prit)}
 .timer{font-size:13.5px;font-weight:600;padding:10px 12px;border-radius:12px;margin-bottom:10px;background:var(--soft)}
 .timer.ok{color:var(--ok)}.timer.wait{color:var(--warn)}
 .btns{display:flex;gap:8px}
@@ -119,10 +123,11 @@ function step(id,k,d){const a=get(id);todayLog(a);
   else{for(let i=a.posts.length-1;i>=0;i--){if(k==="np"||a.posts[i].cp){a.posts.splice(i,1);break}}}
  }else a[k]=Math.max(0,a[k]+d);
  save();render()}
+function move(id,d){const i=accs.findIndex(x=>x.id===id),j=i+d;if(i<0||j<0||j>=accs.length)return;[accs[i],accs[j]]=[accs[j],accs[i]];save();render()}
 function render(){
  $("cnt").textContent=accs.length?accs.length+"개 계정":"";
  if(!accs.length){$("list").innerHTML=ready?'<div class="empty">아직 계정이 없어요<br>아래 버튼으로 첫 계정을 추가하세요</div>':'<div class="empty">불러오는 중…</div>';return}
- $("list").innerHTML=accs.map(a=>{
+ $("list").innerHTML=accs.map((a,i)=>{
   todayLog(a);
   const day=dayNum(a.start),s=stageOf(day);
   const np=a.posts.length,cp=a.posts.filter(p=>p.cp).length;
@@ -146,13 +151,14 @@ function render(){
    </div>
    ${timer}
    <div class="btns"><button class="btn pri" data-a="post" data-id="${a.id}">글 올림</button>${s.coupang?`<button class="btn" data-a="post" data-id="${a.id}" data-cp="1">쿠팡 글 올림</button>`:""}</div>
-   <div class="more"><button class="link" data-a="undo" data-id="${a.id}">마지막 글 취소</button><span><button class="link" data-a="edit" data-id="${a.id}">수정 (시작 ${a.start})</button> <button class="link danger" data-a="del" data-id="${a.id}">${delArm===a.id?"한 번 더 누르면 삭제":"삭제"}</button></span></div>
+   <div class="more"><span><button class="link" data-a="undo" data-id="${a.id}">마지막 글 취소</button></span><div class="order"><button class="ob" aria-label="위로" data-a="move" data-id="${a.id}" data-d="-1"${i===0?" disabled":""}>▲</button><button class="ob" aria-label="아래로" data-a="move" data-id="${a.id}" data-d="1"${i===accs.length-1?" disabled":""}>▼</button></div><span><button class="link" data-a="edit" data-id="${a.id}">수정 (시작 ${a.start})</button> <button class="link danger" data-a="del" data-id="${a.id}">${delArm===a.id?"한 번 더 누르면 삭제":"삭제"}</button></span></div>
   </div>`}).join("");
 }
 $("list").addEventListener("click",e=>{
  const t=e.target.closest("[data-a]");if(!t)return;
  const id=+t.dataset.id,a=t.dataset.a;
  if(a==="adj"){adj(id,t.dataset.k,+t.dataset.d,e)}
+ else if(a==="move")move(id,+t.dataset.d);
  else if(a==="step")step(id,t.dataset.k,+t.dataset.d);
  else if(a==="post")post(id,!!t.dataset.cp);
  else if(a==="undo")undo(id);
