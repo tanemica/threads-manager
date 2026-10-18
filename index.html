@@ -39,6 +39,10 @@ h1{font-size:22px;margin:0;letter-spacing:-.5px}
 .tile b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
 .tile b.warn{color:var(--warn)}.tile b.bad{color:var(--bad)}.tile b.full{color:var(--ok)}
 .tile .m{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:50%;background:var(--card);color:var(--sub);display:grid;place-items:center;font-size:16px}
+.tile{padding-right:86px}
+.pm{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:6px}
+.pmb{width:36px;height:36px;border-radius:50%;border:0;background:var(--card);color:var(--tx);font-size:18px;line-height:1;display:grid;place-items:center;padding:0}
+.pmb:active{background:var(--pri);color:var(--prit)}
 .timer{font-size:13.5px;font-weight:600;padding:10px 12px;border-radius:12px;margin-bottom:10px;background:var(--soft)}
 .timer.ok{color:var(--ok)}.timer.wait{color:var(--warn)}
 .btns{display:flex;gap:8px}
@@ -107,6 +111,14 @@ function adj(id,k,d,e){if(e)e.stopPropagation();const a=get(id);todayLog(a);a[k]
 function c(v,max){return v>max?"bad":v===max&&max>0?"full":""}
 function fmt(ms){const m=Math.ceil(ms/60000),h=Math.floor(m/60);return h?h+"시간 "+(m%60)+"분":m+"분"}
 function esc(s){return s.replace(/[&<>"]/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[x]))}
+function tile(label,v,max,cl,id,k){const btn=(d,t)=>`<button class="pmb" aria-label="${label} ${d>0?"+1":"-1"}" data-a="step" data-id="${id}" data-k="${k}" data-d="${d}">${t}</button>`;
+ return `<div class="tile"><small>${label}</small><b class="${cl}">${v}<small> / ${max}</small></b><span class="pm">${btn(-1,"−")}${btn(1,"＋")}</span></div>`}
+function step(id,k,d){const a=get(id);todayLog(a);
+ if(k==="np"||k==="cp"){
+  if(d>0)a.posts.push({t:Date.now(),cp:k==="cp"});
+  else{for(let i=a.posts.length-1;i>=0;i--){if(k==="np"||a.posts[i].cp){a.posts.splice(i,1);break}}}
+ }else a[k]=Math.max(0,a[k]+d);
+ save();render()}
 function render(){
  $("cnt").textContent=accs.length?accs.length+"개 계정":"";
  if(!accs.length){$("list").innerHTML=ready?'<div class="empty">아직 계정이 없어요<br>아래 버튼으로 첫 계정을 추가하세요</div>':'<div class="empty">불러오는 중…</div>';return}
@@ -127,10 +139,10 @@ function render(){
    <div class="bar"><i style="width:${pct}%"></i></div>
    <div class="row2"><span>${left}</span><span>${rule}</span></div>
    <div class="grid">
-    <div class="tile"><small>오늘 글</small><b class="${c(np,s.posts)}">${np}<small> / ${s.posts}</small></b></div>
-    <div class="tile"><small>쿠팡 글</small><b class="${s.coupang===0?(cp?'bad':''):c(cp,s.coupang)}">${cp}<small> / ${s.coupang===0?"금지":s.coupang}</small></b></div>
-    <button class="tile" data-a="adj" data-id="${a.id}" data-k="heart" data-d="1"><small>하트 (탭 +1)</small><b class="${c(a.heart,s.heart)}">${a.heart}<small> / ${s.heart}</small></b><span class="m" data-a="adj" data-id="${a.id}" data-k="heart" data-d="-1">−</span></button>
-    <button class="tile" data-a="adj" data-id="${a.id}" data-k="comment" data-d="1"><small>댓글 (탭 +1)</small><b class="${c(a.comment,s.comment)}">${a.comment}<small> / ${s.comment}</small></b><span class="m" data-a="adj" data-id="${a.id}" data-k="comment" data-d="-1">−</span></button>
+    ${tile("오늘 글",np,s.posts,c(np,s.posts),a.id,"np")}
+    ${tile("쿠팡 글",cp,s.coupang===0?"금지":s.coupang,s.coupang===0?(cp?"bad":""):c(cp,s.coupang),a.id,"cp")}
+    ${tile("하트",a.heart,s.heart,c(a.heart,s.heart),a.id,"heart")}
+    ${tile("댓글",a.comment,s.comment,c(a.comment,s.comment),a.id,"comment")}
    </div>
    ${timer}
    <div class="btns"><button class="btn pri" data-a="post" data-id="${a.id}">글 올림</button>${s.coupang?`<button class="btn" data-a="post" data-id="${a.id}" data-cp="1">쿠팡 글 올림</button>`:""}</div>
@@ -141,6 +153,7 @@ $("list").addEventListener("click",e=>{
  const t=e.target.closest("[data-a]");if(!t)return;
  const id=+t.dataset.id,a=t.dataset.a;
  if(a==="adj"){adj(id,t.dataset.k,+t.dataset.d,e)}
+ else if(a==="step")step(id,t.dataset.k,+t.dataset.d);
  else if(a==="post")post(id,!!t.dataset.cp);
  else if(a==="undo")undo(id);
  else if(a==="edit")openDlg(id);
