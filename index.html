@@ -70,6 +70,11 @@ label.chk{display:flex;align-items:center;margin:2px 0 12px;color:var(--tx);font
 .tbig{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1.15}
 .tsub{font-size:12.5px;color:var(--sub)}
 .tm.wait .tbig{color:var(--warn)}.tm.ok .tbig{color:var(--ok);font-size:24px}.tm.full .tbig{color:var(--ok);font-size:24px}.tm.bad .tbig{color:var(--bad);font-size:24px}
+.card{background:color-mix(in srgb,var(--ca,#999) 13%,var(--card));--soft:color-mix(in srgb,var(--ca,#999) 24%,var(--card))}
+.cdot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--ca);margin-right:8px;vertical-align:-1px}
+.swatches{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 16px}
+.sw{width:34px;height:34px;border-radius:50%;border:3px solid transparent;background:var(--c);padding:0;box-shadow:0 0 0 1px #0002}
+.sw[aria-pressed="true"]{border-color:var(--card);box-shadow:0 0 0 3px var(--tx)}
 .timer{font-size:13.5px;font-weight:600;padding:10px 12px;border-radius:12px;margin-bottom:10px;background:var(--soft)}
 .timer.ok{color:var(--ok)}.timer.wait{color:var(--warn)}
 .btns{display:flex;gap:8px}
@@ -102,6 +107,7 @@ input{font:inherit;width:100%;padding:12px;border:0;border-radius:12px;backgroun
   <h2 id="dTitle">새 계정</h2>
   <label for="fName">이름</label><input id="fName" placeholder="예: 재테크1">
   <label for="fDate">시작일 (계정 만든 날)</label><input id="fDate" type="date">
+  <label>색상</label><div id="fColors" class="swatches"></div>
   <div class="foot"><button class="btn" id="dCancel">취소</button><button class="btn pri" id="dSave">저장</button></div>
 </dialog>
 
@@ -122,6 +128,8 @@ const STAGES=[
  {n:4,name:"90일 신뢰 계정",from:90,to:null,posts:4,gap:4,coupang:4,heart:3,comment:3}
 ];
 const KEY="threads-mgr-v1";
+const PAL=["#ef6f6c","#f2a33a","#8cc152","#3fbf9f","#4aa3df","#6f7ae0","#a468d8","#e86aa8"];
+let pickColor=PAL[0];
 let accs=load(), editId=null, delArm=null, ready=false, docRef=null, chain=Promise.resolve();
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
 // 저장: 브라우저 + 서버(db). 서버 저장이 되면 홈 화면 아이콘으로 열어도 데이터가 남는다.
@@ -136,9 +144,10 @@ function dayNum(start){const [y,m,d]=start.split("-").map(Number);const t=new Da
 function stageOf(day){return STAGES.find(s=>day>=s.from&&(s.to==null||day<=s.to))||STAGES[0]}
 function todayLog(a){if(a.date!==today()){a.date=today();a.heart=0;a.comment=0}const t0=new Date();t0.setHours(0,0,0,0);a.posts=a.posts.filter(p=>p.t>=t0.getTime());return a}
 const get=id=>accs.find(x=>x.id===id);
-function openDlg(id){editId=id||null;const a=id&&get(id);$("dTitle").textContent=a?"계정 수정":"새 계정";$("fName").value=a?a.name:"";$("fDate").value=a?a.start:today();$("dlg").showModal()}
+function drawSw(){$("fColors").innerHTML=PAL.map(c=>`<button type="button" class="sw" style="--c:${c}" data-c="${c}" aria-label="색상 ${c}" aria-pressed="${c===pickColor}"></button>`).join("")}
+function openDlg(id){editId=id||null;const a=id&&get(id);pickColor=a?(a.color||PAL[0]):(PAL.find(c=>!accs.some(x=>x.color===c))||PAL[accs.length%PAL.length]);drawSw();$("dTitle").textContent=a?"계정 수정":"새 계정";$("fName").value=a?a.name:"";$("fDate").value=a?a.start:today();$("dlg").showModal()}
 function saveAcc(){const name=$("fName").value.trim(),start=$("fDate").value;if(!name||!start)return;
- if(editId){const a=get(editId);a.name=name;a.start=start}else accs.push({id:Date.now(),name,start,date:today(),posts:[],heart:0,comment:0});
+ if(editId){const a=get(editId);a.name=name;a.start=start;a.color=pickColor}else accs.push({id:Date.now(),name,start,color:pickColor,date:today(),posts:[],heart:0,comment:0});
  save();$("dlg").close();render()}
 function del(id){if(delArm===id){accs=accs.filter(a=>a.id!==id);delArm=null;save()}else{delArm=id;setTimeout(()=>{if(delArm===id){delArm=null;render()}},3000)}render()}
 function post(id,cp){const a=get(id);todayLog(a);a.posts.push({t:Date.now(),cp});save();render()}
@@ -173,8 +182,10 @@ function saveSched(){const a=get(schedId);if(!a||!$("sDate").value)return;a.post
 function render(){
  $("cnt").textContent=accs.length?accs.length+"개 계정":"";
  if(!accs.length){$("list").innerHTML=ready?'<div class="empty">아직 계정이 없어요<br>아래 버튼으로 첫 계정을 추가하세요</div>':'<div class="empty">불러오는 중…</div>';return}
+ let ch=false;
  $("list").innerHTML=accs.map((a,i)=>{
   todayLog(a);
+  if(!a.color){a.color=PAL[i%PAL.length];ch=true}const col=a.color;
   const day=dayNum(a.start),s=stageOf(day);
   const todays=a.posts.filter(p=>ymd(new Date(p.t))===today()),np=todays.length,cp=todays.filter(p=>p.cp).length;
   const up=a.posts.filter(p=>p.t>Date.now()).sort((x,y)=>x.t-y.t);
@@ -190,8 +201,8 @@ function render(){
    :`<div class="tm ok"><div class="tbig">지금 올릴 수 있어요</div><div class="tsub">${last?"마지막 글 후 "+s.gap+"시간이 지났어요":"오늘 첫 글이에요"}</div></div>`;
   const remTxt=rem>0?rem+"개 더 써야 해요":rem===0?"오늘 목표 완료":(-rem)+"개 초과";
   const rule=`최소 ${s.gap}시간 간격${s.n===2?" · 하루 2~3개":""}`;
-  return `<div class="card s${s.n}">
-   <div class="nm"><span class="name">${esc(a.name)}</span><div class="order"><button class="ob" aria-label="위로" data-a="move" data-id="${a.id}" data-d="-1"${i===0?" disabled":""}>▲</button><button class="ob" aria-label="아래로" data-a="move" data-id="${a.id}" data-d="1"${i===accs.length-1?" disabled":""}>▼</button></div></div>
+  return `<div class="card s${s.n}" style="--ca:${col}">
+   <div class="nm"><span class="name"><i class="cdot"></i>${esc(a.name)}</span><div class="order"><button class="ob" aria-label="위로" data-a="move" data-id="${a.id}" data-d="-1"${i===0?" disabled":""}>▲</button><button class="ob" aria-label="아래로" data-a="move" data-id="${a.id}" data-d="1"${i===accs.length-1?" disabled":""}>▼</button></div></div>
    <div class="hero">
     <div class="hl"><small class="cap">계정 운영</small><div class="dayb"><b>${day}</b><span>일차</span></div><div class="stage">${s.n}단계 · ${s.name}</div></div>
     <div class="hr"><small class="cap">오늘 쓴 글</small><div class="cntb ${c(np,s.posts)}"><b>${np}</b><span>/${s.posts}</span></div><div class="remt ${rem<0?"bad":rem===0?"full":""}">${remTxt}</div></div>
@@ -209,6 +220,7 @@ function render(){
    <div class="btns" style="margin-top:8px"><button class="btn" data-a="sched" data-id="${a.id}">예약 추가</button></div>
    <div class="more"><span><button class="link" data-a="undo" data-id="${a.id}">마지막 글 취소</button></span><span><button class="link" data-a="edit" data-id="${a.id}">수정 (시작 ${a.start})</button> <button class="link danger" data-a="del" data-id="${a.id}">${delArm===a.id?"한 번 더 누르면 삭제":"삭제"}</button></span></div>
   </div>`}).join("");
+ if(ch)save();
 }
 $("list").addEventListener("click",e=>{
  const t=e.target.closest("[data-a]");if(!t)return;
@@ -226,6 +238,7 @@ $("list").addEventListener("click",e=>{
 $("addBtn").onclick=()=>openDlg();
 $("dCancel").onclick=()=>$("dlg").close();
 $("dSave").onclick=saveAcc;
+$("fColors").addEventListener("click",e=>{const b=e.target.closest(".sw");if(!b)return;pickColor=b.dataset.c;drawSw()});
 $("sCancel").onclick=()=>$("sdlg").close();
 $("sSave").onclick=saveSched;
 ["sDate","sTime","sCp"].forEach(id=>$(id).addEventListener("change",checkSched));
