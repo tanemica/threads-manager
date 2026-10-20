@@ -53,6 +53,23 @@ h1{font-size:22px;margin:0;letter-spacing:-.5px}
 input[type=checkbox]{width:auto;margin:0 8px 0 0}
 label.chk{display:flex;align-items:center;margin:2px 0 12px;color:var(--tx);font-size:14px}
 .swarn{color:var(--warn);font-size:13px;min-height:18px;margin-bottom:10px}
+.nm{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.cap{display:block;font-size:11.5px;color:var(--sub);margin-bottom:2px}
+.dayb{line-height:1;white-space:nowrap}
+.dayb b{font-size:48px;font-weight:800;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+.dayb span{font-size:16px;color:var(--sub);margin-left:3px}
+.hr{text-align:right}
+.cntb{line-height:1;white-space:nowrap}
+.cntb b{font-size:48px;font-weight:800;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+.cntb span{font-size:22px;color:var(--sub);margin-left:2px}
+.cntb.full b{color:var(--ok)}.cntb.bad b{color:var(--bad)}
+.remt{font-size:13px;font-weight:700;margin-top:4px}
+.remt.full{color:var(--ok)}.remt.bad{color:var(--bad)}
+.tm{background:var(--soft);border-radius:16px;padding:14px;text-align:center;margin-bottom:10px;display:flex;flex-direction:column;gap:2px}
+.tbig{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1.15}
+.tsub{font-size:12.5px;color:var(--sub)}
+.tm.wait .tbig{color:var(--warn)}.tm.ok .tbig{color:var(--ok);font-size:24px}.tm.full .tbig{color:var(--ok);font-size:24px}.tm.bad .tbig{color:var(--bad);font-size:24px}
 .timer{font-size:13.5px;font-weight:600;padding:10px 12px;border-radius:12px;margin-bottom:10px;background:var(--soft)}
 .timer.ok{color:var(--ok)}.timer.wait{color:var(--warn)}
 .btns{display:flex;gap:8px}
@@ -165,13 +182,20 @@ function render(){
   const pct=s.to?Math.min(100,Math.max(0,(day-s.from+1)/(s.to-s.from+1)*100)):100;
   const left=s.to?`다음 단계까지 ${s.to-day+1}일`:"최종 단계";
   const last=np?Math.max(...todays.map(p=>p.t)):null,remain=last?last+s.gap*36e5-Date.now():0;
-  const timer=np>=s.posts?`<div class="timer wait">오늘 글 한도에 도달했어요</div>`
-   :remain>0?`<div class="timer wait">${fmt(remain)} 뒤에 다음 글 가능</div>`
-   :`<div class="timer ok">지금 글 올려도 돼요</div>`;
+  const rem=s.posts-np,nextAt=last?last+s.gap*36e5:null;
+  const clock=t=>{const d=new Date(t),h=d.getHours();return (h<12?"오전 ":"오후 ")+((h%12)||12)+":"+z2(d.getMinutes())};
+  const timer=np>s.posts?`<div class="tm bad"><div class="tbig">한도 ${np-s.posts}개 초과</div><div class="tsub">오늘 글 한도는 ${s.posts}개예요</div></div>`
+   :np===s.posts?`<div class="tm full"><div class="tbig">오늘 목표 완료</div><div class="tsub">글 ${s.posts}개를 모두 채웠어요</div></div>`
+   :remain>0?`<div class="tm wait"><div class="tsub">다음 글까지</div><div class="tbig">${fmt(remain)}</div><div class="tsub">${clock(nextAt)}부터 가능</div></div>`
+   :`<div class="tm ok"><div class="tbig">지금 올릴 수 있어요</div><div class="tsub">${last?"마지막 글 후 "+s.gap+"시간이 지났어요":"오늘 첫 글이에요"}</div></div>`;
+  const remTxt=rem>0?rem+"개 더 써야 해요":rem===0?"오늘 목표 완료":(-rem)+"개 초과";
   const rule=`최소 ${s.gap}시간 간격${s.n===2?" · 하루 2~3개":""}`;
   return `<div class="card s${s.n}">
-   <div class="top"><div><div class="name">${esc(a.name)}</div><div class="stage">${s.n}단계 · ${s.name}</div></div>
-    <div class="day"><b>${day}</b><span>일차</span></div></div>
+   <div class="nm"><span class="name">${esc(a.name)}</span><div class="order"><button class="ob" aria-label="위로" data-a="move" data-id="${a.id}" data-d="-1"${i===0?" disabled":""}>▲</button><button class="ob" aria-label="아래로" data-a="move" data-id="${a.id}" data-d="1"${i===accs.length-1?" disabled":""}>▼</button></div></div>
+   <div class="hero">
+    <div class="hl"><small class="cap">계정 운영</small><div class="dayb"><b>${day}</b><span>일차</span></div><div class="stage">${s.n}단계 · ${s.name}</div></div>
+    <div class="hr"><small class="cap">오늘 쓴 글</small><div class="cntb ${c(np,s.posts)}"><b>${np}</b><span>/${s.posts}</span></div><div class="remt ${rem<0?"bad":rem===0?"full":""}">${remTxt}</div></div>
+   </div>
    <div class="bar"><i style="width:${pct}%"></i></div>
    <div class="row2"><span>${left}</span><span>${rule}</span></div>
    <div class="grid">
@@ -183,7 +207,7 @@ function render(){
    ${timer}${upHtml}
    <div class="btns"><button class="btn pri" data-a="post" data-id="${a.id}">글 올림</button>${s.coupang?`<button class="btn" data-a="post" data-id="${a.id}" data-cp="1">쿠팡 글 올림</button>`:""}</div>
    <div class="btns" style="margin-top:8px"><button class="btn" data-a="sched" data-id="${a.id}">예약 추가</button></div>
-   <div class="more"><span><button class="link" data-a="undo" data-id="${a.id}">마지막 글 취소</button></span><div class="order"><button class="ob" aria-label="위로" data-a="move" data-id="${a.id}" data-d="-1"${i===0?" disabled":""}>▲</button><button class="ob" aria-label="아래로" data-a="move" data-id="${a.id}" data-d="1"${i===accs.length-1?" disabled":""}>▼</button></div><span><button class="link" data-a="edit" data-id="${a.id}">수정 (시작 ${a.start})</button> <button class="link danger" data-a="del" data-id="${a.id}">${delArm===a.id?"한 번 더 누르면 삭제":"삭제"}</button></span></div>
+   <div class="more"><span><button class="link" data-a="undo" data-id="${a.id}">마지막 글 취소</button></span><span><button class="link" data-a="edit" data-id="${a.id}">수정 (시작 ${a.start})</button> <button class="link danger" data-a="del" data-id="${a.id}">${delArm===a.id?"한 번 더 누르면 삭제":"삭제"}</button></span></div>
   </div>`}).join("");
 }
 $("list").addEventListener("click",e=>{
